@@ -1,9 +1,13 @@
 import os
 from typing import Any, List, Literal, Optional
 
-from langchain_core.callbacks.manager import AsyncCallbackManagerForRetrieverRun, CallbackManagerForRetrieverRun
+from langchain_core.callbacks.manager import (
+    AsyncCallbackManagerForRetrieverRun,
+    CallbackManagerForRetrieverRun,
+)
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
+
 
 class DappierRetriever(BaseRetriever):
     """Dappier retriever."""
@@ -15,19 +19,17 @@ class DappierRetriever(BaseRetriever):
     ref: Optional[str] = None
     """Site domain where AI recommendations are displayed."""
     num_articles_ref: int = 0
-    """Minimum number of articles from the ref domain specified. The rest will come from other sites within the RAG model."""
+    """Minimum number of articles from the ref domain specified.
+    The rest will come from other sites within the RAG model."""
     search_algorithm: Literal[
-        "most_recent",
-        "most_recent_semantic",
-        "semantic",
-        "trending"
+        "most_recent", "most_recent_semantic", "semantic", "trending"
     ] = "most_recent"
     """Search algorithm for retrieving articles."""
     api_key: Optional[str] = None
     """The API key used to interact with the Dappier APIs."""
 
     def _get_relevant_documents(
-            self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
     ) -> List[Document]:
         """Get documents relevant to a query.
 
@@ -47,22 +49,22 @@ class DappierRetriever(BaseRetriever):
         try:
             if not self.data_model_id:
                 raise ValueError("Data model id is not initialized.")
-            dp_client = Dappier(
-                api_key = self.api_key or os.environ["DAPPIER_API_KEY"]
-            )
+            dp_client = Dappier(api_key=self.api_key or os.environ["DAPPIER_API_KEY"])
             response = dp_client.get_ai_recommendations(
                 query=query,
                 data_model_id=self.data_model_id,
                 similarity_top_k=self.k,
                 ref=self.ref,
                 num_articles_ref=self.num_articles_ref,
-                search_algorithm=self.search_algorithm
+                search_algorithm=self.search_algorithm,
             )
             return self._extract_documents(response=response)
         except Exception as e:
             raise ValueError(f"Error while retrieving documents: {e}") from e
-        
-    async def _aget_relevant_documents(self, query: str, *, run_manager: AsyncCallbackManagerForRetrieverRun) -> List[Document]:
+
+    async def _aget_relevant_documents(
+        self, query: str, *, run_manager: AsyncCallbackManagerForRetrieverRun
+    ) -> List[Document]:
         """Asynchronously get documents relevant to a query.
         Args:
             query: String to find relevant docuements for
@@ -79,7 +81,7 @@ class DappierRetriever(BaseRetriever):
             )
         try:
             dp_client = DappierAsync(
-                api_key = self.api_key or os.environ["DAPPIER_API_KEY"]
+                api_key=self.api_key or os.environ["DAPPIER_API_KEY"]
             )
             async with dp_client as client:
                 response = await client.get_ai_recommendations_async(
@@ -88,7 +90,7 @@ class DappierRetriever(BaseRetriever):
                     similarity_top_k=self.k,
                     ref=self.ref,
                     num_articles_ref=self.num_articles_ref,
-                    search_algorithm=self.search_algorithm
+                    search_algorithm=self.search_algorithm,
                 )
                 return self._extract_documents(response=response)
         except Exception as e:
@@ -104,14 +106,16 @@ class DappierRetriever(BaseRetriever):
         if rec_response.response is None or rec_response.response.results is None:
             return docs
         for doc in rec_response.response.results:
-            docs.append(Document(
-                page_content=doc.summary,
-                metadata={
-                    "title": doc.title,
-                    "author": doc.author,
-                    "source_url": doc.source_url,
-                    "image_url": doc.image_url,
-                    "pubdata": doc.pubdate
-                }
-            ))
+            docs.append(
+                Document(
+                    page_content=doc.summary,
+                    metadata={
+                        "title": doc.title,
+                        "author": doc.author,
+                        "source_url": doc.source_url,
+                        "image_url": doc.image_url,
+                        "pubdata": doc.pubdate,
+                    },
+                )
+            )
         return docs
